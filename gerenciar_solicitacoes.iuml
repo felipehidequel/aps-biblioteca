@@ -1,0 +1,58 @@
+@startuml
+' Definição de título e participantes
+title Gerenciamento de Solicitação de Empréstimo
+
+actor Bibliotecário
+participant ":TelaSolicitacoes" as Tela
+participant ":ControladorGerenciamento" as Controlador
+participant "s:SolicitacaoEmprestimo" as Solicitacao
+participant "c:Cliente" as Cliente
+participant "l:Livro" as Livro
+
+' Início da sequência
+Bibliotecário -> Tela ++ : 1: acessarAreaSolicitacoes()
+Tela -> Controlador ++ : 2: listarSolicitacoes()
+Controlador --> Tela -- : 3: retorna [listaDeSolicitacoes]
+Tela --> Bibliotecário : 4: exibeSolicitacoes()
+
+Bibliotecário -> Tela ++ : 5: selecionarSolicitacao(id)
+Tela -> Controlador ++ : 6: verificarStatusCliente(id)
+Controlador -> Solicitacao ++ : 7: getCliente()
+Solicitacao --> Controlador -- : 8: retorna [cliente]
+Controlador -> Cliente ++ : 9: isRegular()
+
+' Bloco de fluxo alternativo (alt/else)
+alt Cliente regular
+    Cliente --> Controlador -- : 10: retorna [true]
+    Controlador --> Tela -- : 11: retorna [statusRegular]
+    Tela --> Bibliotecário : 12: exibeStatusRegular()
+    
+    Bibliotecário -> Tela ++ : 13: aceitarSolicitacao()
+    Tela -> Controlador ++ : 14: confirmarEmprestimo(id)
+    
+    Controlador -> Solicitacao ++ : 15: atualizarStatus("Aprovada")
+    Solicitacao --> Controlador --
+    Controlador -> Livro ++ : 16: atualizarStatus("Emprestado")
+    Livro --> Controlador --
+    Controlador -> Cliente ++ : 17: adicionarAoHistorico(emprestimo)
+    Cliente --> Controlador --
+
+    Controlador --> Tela -- : 18: retorna [confirmacaoSucesso]
+    Tela --> Bibliotecário : 19: exibeConfirmacaoSucesso()
+
+else Cliente não regular
+    Cliente --> Controlador -- : 10.1: retorna [false]
+    Controlador -> Cliente ++ : 10.2: getPendencias()
+    Cliente --> Controlador -- : 10.3: retorna [listaDePendencias]
+    Controlador --> Tela -- : 11.1: retorna [statusNaoRegular, pendencias]
+    Tela --> Bibliotecário : 12.1: exibePendencias()
+
+    Bibliotecário -> Tela ++ : 13.1: recusarSolicitacao()
+    Tela -> Controlador ++ : 14.1: recusarEmprestimo(id)
+    Controlador -> Solicitacao ++ : 15.1: atualizarStatus("Recusada")
+    Solicitacao --> Controlador --
+    
+    Controlador --> Tela -- : 16.1: retorna [confirmacaoRecusa]
+    Tela --> Bibliotecário : 17.1: exibeConfirmacaoRecusa()
+end
+@enduml
