@@ -1,12 +1,12 @@
 @startuml
-title Diagrama de Sequência - Solicitar Empréstimos de Livros (Numerado)
+title Diagrama de Sequência - Solicitar Empréstimos de Livros 
 
 actor Cliente
-participant "1. Interface do Sistema" as UI
-participant "2. Serviço de Autenticação" as AuthService
-participant "3. Serviço de Situação do Cliente" as ClienteService
-participant "4. Controlador de Empréstimos" as EmprestimoController
-participant "5. Serviço de Empréstimos" as EmprestimoService
+participant TelaCliente
+participant AuthService
+participant ClienteService
+participant EmprestimoController
+participant EmprestimoService
 
 ' 1. Pré-condições: Autenticação
 Cliente -> UI : 1. Inserir login e senha
