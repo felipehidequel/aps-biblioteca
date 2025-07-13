@@ -27,8 +27,10 @@ end
 
 ' 3. Fluxo Principal
 Cliente -> UI : 10. Acessar funcionalidade de empréstimo
-UI -> EmprestimoService : 11. obterLivrosDisponiveis()
-EmprestimoService --> UI : 12. lista de livros disponíveis
+UI -> EmprestimoController : 11. obterLivrosDisponiveis()
+EmprestimoController -> EmprestimoService : 12. obterLivrosDisponiveis()
+EmprestimoService --> EmprestimoController : 13. lista de livros disponíveis
+EmprestimoController --> UI : 14. lista de livros disponíveis
 
 Cliente -> UI : 13. Selecionar livros desejados
 UI -> EmprestimoController : 14. solicitarEmprestimo(cliente, livrosSelecionados)
