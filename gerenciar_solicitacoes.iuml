@@ -5,21 +5,21 @@ title Gerenciamento de Solicitação de Empréstimo
 actor Bibliotecário
 participant ":TelaSolicitacoes" as Tela
 participant ":ControladorSolicitacoes" as Controlador
-participant ":ServiceSolicitacoes" as Service
+participant ":SolicitacoesService" as Service
 participant "s:SolicitacaoEmprestimo" as Solicitacao
 participant "c:Cliente" as Cliente
 participant "l:Livro" as Livro
 
 ' Início da sequência
 Bibliotecário -> Tela ++ : 1: acessarAreaSolicitacoes()
-Tela -> Controlador ++ : 2: listarSolicitacoes()
+Tela -> Controlador ++ : 2: listarSolicitacoesPendentes()
 Controlador -> Service ++ : 3: listarSolicitacoesPendentes()
 Service --> Controlador -- : 4: retorna [listaDeSolicitacoes]
 Controlador --> Tela -- : 5: retorna [listaDeSolicitacoes]
 Tela --> Bibliotecário : 6: exibeSolicitacoes()
 
 Bibliotecário -> Tela ++ : 7: selecionarSolicitacao(id)
-Tela -> Controlador ++ : 8: verificarSolicitacao(id)
+Tela -> Controlador ++ : 8: verificarStatusCliente(id)
 Controlador -> Service ++ : 9: verificarStatusCliente(id)
 Service -> Solicitacao ++ : 10: getCliente()
 Solicitacao --> Service -- : 11: retorna [cliente]
