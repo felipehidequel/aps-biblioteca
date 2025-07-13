@@ -4,7 +4,8 @@ title Gerenciamento de Solicitação de Empréstimo
 
 actor Bibliotecário
 participant ":TelaSolicitacoes" as Tela
-participant ":ControladorGerenciamento" as Controlador
+participant ":ControladorSolicitacoes" as Controlador
+participant ":ServiceSolicitacoes" as Service
 participant "s:SolicitacaoEmprestimo" as Solicitacao
 participant "c:Cliente" as Cliente
 participant "l:Livro" as Livro
@@ -12,47 +13,57 @@ participant "l:Livro" as Livro
 ' Início da sequência
 Bibliotecário -> Tela ++ : 1: acessarAreaSolicitacoes()
 Tela -> Controlador ++ : 2: listarSolicitacoes()
-Controlador --> Tela -- : 3: retorna [listaDeSolicitacoes]
-Tela --> Bibliotecário : 4: exibeSolicitacoes()
+Controlador -> Service ++ : 3: listarSolicitacoesPendentes()
+Service --> Controlador -- : 4: retorna [listaDeSolicitacoes]
+Controlador --> Tela -- : 5: retorna [listaDeSolicitacoes]
+Tela --> Bibliotecário : 6: exibeSolicitacoes()
 
-Bibliotecário -> Tela ++ : 5: selecionarSolicitacao(id)
-Tela -> Controlador ++ : 6: verificarStatusCliente(id)
-Controlador -> Solicitacao ++ : 7: getCliente()
-Solicitacao --> Controlador -- : 8: retorna [cliente]
-Controlador -> Cliente ++ : 9: isRegular()
+Bibliotecário -> Tela ++ : 7: selecionarSolicitacao(id)
+Tela -> Controlador ++ : 8: verificarSolicitacao(id)
+Controlador -> Service ++ : 9: verificarStatusCliente(id)
+Service -> Solicitacao ++ : 10: getCliente()
+Solicitacao --> Service -- : 11: retorna [cliente]
+Service -> Cliente ++ : 12: isRegular()
 
 ' Bloco de fluxo alternativo (alt/else)
 alt Cliente regular
-    Cliente --> Controlador -- : 10: retorna [true]
-    Controlador --> Tela -- : 11: retorna [statusRegular]
-    Tela --> Bibliotecário : 12: exibeStatusRegular()
+    Cliente --> Service -- : 13: retorna [true]
+    Service --> Controlador -- : 14: retorna [statusRegular]
+    Controlador --> Tela -- : 15: retorna [statusRegular]
+    Tela --> Bibliotecário : 16: exibeStatusRegular()
     
-    Bibliotecário -> Tela ++ : 13: aceitarSolicitacao()
-    Tela -> Controlador ++ : 14: confirmarEmprestimo(id)
+    Bibliotecário -> Tela ++ : 17: aprovarSolicitacao()
+    Tela -> Controlador ++ : 18: aprovarSolicitacao(id)
+    Controlador -> Service ++ : 19: aprovarSolicitacao(id)
     
-    Controlador -> Solicitacao ++ : 15: atualizarStatus("Aprovada")
-    Solicitacao --> Controlador --
-    Controlador -> Livro ++ : 16: atualizarStatus("Emprestado")
-    Livro --> Controlador --
-    Controlador -> Cliente ++ : 17: adicionarAoHistorico(emprestimo)
-    Cliente --> Controlador --
+    Service -> Solicitacao ++ : 20: atualizarStatus("Aprovada")
+    Solicitacao --> Service --
+    Service -> Livro ++ : 21: atualizarStatus("Emprestado")
+    Livro --> Service --
+    Service -> Cliente ++ : 22: adicionarAoHistorico(emprestimo)
+    Cliente --> Service --
 
-    Controlador --> Tela -- : 18: retorna [confirmacaoSucesso]
-    Tela --> Bibliotecário : 19: exibeConfirmacaoSucesso()
+    Service --> Controlador -- : 23: retorna [confirmacaoSucesso]
+    Controlador --> Tela -- : 24: retorna [confirmacaoSucesso]
+    Tela --> Bibliotecário : 25: exibeConfirmacaoSucesso()
 
 else Cliente não regular
-    Cliente --> Controlador -- : 10.1: retorna [false]
-    Controlador -> Cliente ++ : 10.2: getPendencias()
-    Cliente --> Controlador -- : 10.3: retorna [listaDePendencias]
-    Controlador --> Tela -- : 11.1: retorna [statusNaoRegular, pendencias]
-    Tela --> Bibliotecário : 12.1: exibePendencias()
+    Cliente --> Service -- : 13.1: retorna [false]
+    Service -> Cliente ++ : 13.2: getPendencias()
+    Cliente --> Service -- : 13.3: retorna [listaDePendencias]
+    Service --> Controlador -- : 14.1: retorna [statusNaoRegular, pendencias]
+    Controlador --> Tela -- : 15.1: retorna [statusNaoRegular, pendencias]
+    Tela --> Bibliotecário : 16.1: exibePendencias()
 
-    Bibliotecário -> Tela ++ : 13.1: recusarSolicitacao()
-    Tela -> Controlador ++ : 14.1: recusarEmprestimo(id)
-    Controlador -> Solicitacao ++ : 15.1: atualizarStatus("Recusada")
-    Solicitacao --> Controlador --
+    Bibliotecário -> Tela ++ : 17.1: recusarSolicitacao()
+    Tela -> Controlador ++ : 18.1: recusarSolicitacao(id)
+    Controlador -> Service ++ : 19.1: recusarSolicitacao(id)
+    Service -> Solicitacao ++ : 20.1: atualizarStatus("Recusada")
+    Solicitacao --> Service --
     
-    Controlador --> Tela -- : 16.1: retorna [confirmacaoRecusa]
-    Tela --> Bibliotecário : 17.1: exibeConfirmacaoRecusa()
+    Service --> Controlador -- : 21.1: retorna [confirmacaoRecusa]
+    Controlador --> Tela -- : 22.1: retorna [confirmacaoRecusa]
+    Tela --> Bibliotecário : 23.1: exibeConfirmacaoRecusa()
 end
+
 @enduml
