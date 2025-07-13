@@ -1,48 +1,61 @@
 @startuml
-title Diagrama de Sequência - Solicitar Empréstimos de Livros 
+title Diagrama de Sequência Padronizado - Solicitar Empréstimo de Livros
 
 actor Cliente
 participant TelaCliente
-participant AuthService
-participant ClienteService
-participant EmprestimoController
-participant EmprestimoService
+participant AutenticacaoControlador
+participant AutenticacaoServico
+participant EmprestimoControlador
+participant ClienteServico
+participant EmprestimoServico
 
-' 1. Pré-condições: Autenticação
-Cliente -> UI : 1. Inserir login e senha
-UI -> AuthService : 2. autenticar(login, senha)
-AuthService --> UI : 3. sucesso ou falha
-UI -> Cliente : 4. Exibir resultado da autenticação
+skinparam sequenceMessageAlign center
 
-' 2. Verificar situação do cliente
-UI -> ClienteService : 5. verificarSituacao(cliente)
-ClienteService --> UI : 6. regular ou com pendência
-
-alt 7. Cliente com pendências
-    UI -> Cliente : 8. Exibir mensagem "Você possui pendências"
-    UI -> Cliente : 9. Oferecer opções para regularização
-else 7. Situação regular
-    ' Fluxo segue normalmente
+group Pré-condição: Autenticação
+    Cliente -> TelaCliente ++ : 1. Inserir login e senha
+    TelaCliente -> AutenticacaoControlador ++ : 2. autenticar(login, senha)
+    AutenticacaoControlador -> AutenticacaoServico ++ : 3. executarAutenticacao(login, senha)
+    AutenticacaoServico --> AutenticacaoControlador -- : 4. Retorna [SUCESSO]
+    AutenticacaoControlador --> TelaCliente -- : 5. Retorna token/sucesso
+    TelaCliente --> Cliente -- : 6. Exibe tela principal
 end
 
-' 3. Fluxo Principal
-Cliente -> UI : 10. Acessar funcionalidade de empréstimo
-UI -> EmprestimoController : 11. obterLivrosDisponiveis()
-EmprestimoController -> EmprestimoService : 12. obterLivrosDisponiveis()
-EmprestimoService --> EmprestimoController : 13. lista de livros disponíveis
-EmprestimoController --> UI : 14. lista de livros disponíveis
+group Fluxo Principal: Solicitação de Empréstimo
 
-Cliente -> UI : 13. Selecionar livros desejados
-UI -> EmprestimoController : 14. solicitarEmprestimo(cliente, livrosSelecionados)
+    Cliente -> TelaCliente ++ : 7. Acessa a área de empréstimos
+    TelaCliente -> EmprestimoControlador ++ : 8. obterLivrosDisponiveis()
+    EmprestimoControlador -> EmprestimoServico ++ : 9. obterLivrosDisponiveis()
+    EmprestimoServico --> EmprestimoControlador -- : 10. Retorna [listaDeLivros]
+    EmprestimoControlador --> TelaCliente -- : 11. Retorna [listaDeLivros]
+    TelaCliente --> Cliente -- : 12. Exibe livros disponíveis
 
-alt 15. Todos os livros disponíveis
-    EmprestimoController -> EmprestimoService : 16. registrarSolicitacao(cliente, livros)
-    EmprestimoService --> EmprestimoController : 17. confirmação
-    EmprestimoController --> UI : 18. solicitação registrada
-    UI -> Cliente : 19. Pedido será avaliado pelo bibliotecário
-else 15. Algum livro não disponível
-    EmprestimoService --> UI : 16. Informar que livro está emprestado
-    UI -> Cliente : 17. Exibir opção de reserva ou retornar à tela inicial
+    Cliente -> TelaCliente ++ : 13. Seleciona livros e solicita empréstimo
+    TelaCliente -> EmprestimoControlador ++ : 14. solicitarEmprestimo(cliente, livros)
+    EmprestimoControlador -> EmprestimoServico ++ : 15. registrarSolicitacao(cliente, livros)
+    
+    ' Lógica de negócio é centralizada no EmprestimoServico
+    EmprestimoServico -> ClienteServico ++ : 16. verificarSituacao(cliente)
+    
+    alt Cliente com pendências
+        ClienteServico --> EmprestimoServico -- : Retorna [COM_PENDENCIAS]
+        EmprestimoServico --> EmprestimoControlador -- : Retorna erro "Cliente com pendências"
+        EmprestimoControlador --> TelaCliente -- : Retorna erro "Cliente com pendências"
+        TelaCliente --> Cliente --: 17. Exibe "Você possui pendências e não pode solicitar empréstimos"
+    
+    else Cliente regular
+        ClienteServico --> EmprestimoServico -- : Retorna [REGULAR]
+        
+        ' EmprestimoServico continua a verificação (ex: disponibilidade dos livros)
+        alt Livro indisponível
+            EmprestimoServico --> EmprestimoControlador -- : Retorna erro "Livro indisponível"
+            EmprestimoControlador --> TelaCliente -- : Retorna erro "Livro indisponível"
+            TelaCliente --> Cliente --: 18. Exibe "Um dos livros não está mais disponível"
+        
+        else Todos os livros disponíveis
+            EmprestimoServico --> EmprestimoControlador -- : Retorna [SUCESSO]
+            EmprestimoControlador --> TelaCliente -- : Retorna [SUCESSO]
+            TelaCliente --> Cliente --: 19. Exibe "Solicitação registrada com sucesso! Aguarde a avaliação."
+        end
+    end
 end
-
 @enduml
