@@ -1,0 +1,46 @@
+@startuml
+title Diagrama de Sequência - Solicitar Empréstimos de Livros (Numerado)
+
+actor Cliente
+participant "1. Interface do Sistema" as UI
+participant "2. Serviço de Autenticação" as AuthService
+participant "3. Serviço de Situação do Cliente" as ClienteService
+participant "4. Controlador de Empréstimos" as EmprestimoController
+participant "5. Serviço de Empréstimos" as EmprestimoService
+
+' 1. Pré-condições: Autenticação
+Cliente -> UI : 1. Inserir login e senha
+UI -> AuthService : 2. autenticar(login, senha)
+AuthService --> UI : 3. sucesso ou falha
+UI -> Cliente : 4. Exibir resultado da autenticação
+
+' 2. Verificar situação do cliente
+UI -> ClienteService : 5. verificarSituacao(cliente)
+ClienteService --> UI : 6. regular ou com pendência
+
+alt 7. Cliente com pendências
+    UI -> Cliente : 8. Exibir mensagem "Você possui pendências"
+    UI -> Cliente : 9. Oferecer opções para regularização
+else 7. Situação regular
+    ' Fluxo segue normalmente
+end
+
+' 3. Fluxo Principal
+Cliente -> UI : 10. Acessar funcionalidade de empréstimo
+UI -> EmprestimoService : 11. obterLivrosDisponiveis()
+EmprestimoService --> UI : 12. lista de livros disponíveis
+
+Cliente -> UI : 13. Selecionar livros desejados
+UI -> EmprestimoController : 14. solicitarEmprestimo(cliente, livrosSelecionados)
+
+alt 15. Todos os livros disponíveis
+    EmprestimoController -> EmprestimoService : 16. registrarSolicitacao(cliente, livros)
+    EmprestimoService --> EmprestimoController : 17. confirmação
+    EmprestimoController --> UI : 18. solicitação registrada
+    UI -> Cliente : 19. Pedido será avaliado pelo bibliotecário
+else 15. Algum livro não disponível
+    EmprestimoService --> UI : 16. Informar livro emprestado
+    UI -> Cliente : 17. Exibir opção de reserva ou retornar à tela inicial
+end
+
+@enduml
