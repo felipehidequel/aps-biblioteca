@@ -1,0 +1,160 @@
+@startuml
+title Diagrama de Classe - Biblioteca
+
+' =========================================================
+' === CAMADA DE APRESENTAÇÃO / FRONTEIRA (Boundary) ===
+' =========================================================
+class TelaLogin
+class TelaPortalCliente
+class TelaPainelAdmin
+
+
+' =========================================================
+' === CAMADA DE CONTROLE (Control) ===
+' =========================================================
+package "Autenticação" {
+    class AutenticacaoControlador {
+        +autenticar(login, senha): Usuario
+    }
+}
+
+package "Portal do Cliente" {
+    class PortalClienteControlador {
+        +criarSolicitacao(clienteId, livroId): void
+        +reservarLivro(clienteId, livroId): void
+        +renovarEmprestimo(emprestimoId): void
+    }
+}
+
+package "Painel do Bibliotecário" {
+    class SolicitacaoControlador {
+      +aprovarSolicitacao(id): void
+      +rejeitarSolicitacao(id): void
+      +listarPendentes(): List
+    }
+    class EmprestimoControlador {
+        +registrarDevolucao(emprestimoId): void
+    }
+    class AcervoControlador {
+        +adicionarNovoLivro(titulo, autor): void
+    }
+    class GestaoUsuarioControlador {
+        +cadastrarNovoCliente(dados): void
+    }
+}
+
+
+' =========================================================
+' === CAMADA DE SERVIÇO (Service) - COM MÉTODOS ===
+' =========================================================
+class AutenticacaoServico {
+    +executarAutenticacao(login, senha): Usuario
+}
+
+class SolicitacaoServico {
+  +criarSolicitacao(clienteId, livroId): void
+  +aprovar(solicitacaoId): void
+  +rejeitar(solicitacaoId): void
+  +listarPendentes(): List
+  +buscarPorId(id): Solicitacao
+}
+
+class EmprestimoServico {
+  +criarEmprestimo(cliente, livro): Emprestimo
+  +registrarDevolucao(emprestimoId): void
+  +renovarEmprestimo(emprestimoId): void
+}
+
+class ReservaServico {
+    +criarReserva(clienteId, livroId): void
+    +cancelarReserva(reservaId): void
+    +notificarProximoDaFila(livroId): void
+}
+
+class LivroServico {
+  +adicionarLivro(titulo, autor): void
+  +atualizarLivro(livro): void
+  +buscarLivro(id): Livro
+  +atualizarDisponibilidade(livro, status): void
+  +isDisponivel(id): boolean
+}
+
+class ClienteServico {
+  +cadastrarCliente(nome, email): void
+  +atualizarCliente(cliente): void
+  +buscarCliente(id): Cliente
+}
+
+
+' =========================================================
+' === CAMADA DE ENTIDADE (Entity) - COM ATRIBUTOS ===
+' =========================================================
+abstract class Usuario {
+  #id: int
+  #nome: string
+  #email: string
+  #senha: string
+}
+
+class Cliente extends Usuario {
+  -telefone: string
+  +isRegular(): boolean
+}
+
+class Bibliotecario extends Usuario {
+  -nivelAcesso: string
+}
+
+class Livro {
+  -id: int
+  -titulo: string
+  -autor: string
+  -disponivel: boolean
+}
+
+class Emprestimo {
+  -id: int
+  -dataEmprestimo: Date
+  -dataPrevistaDevolucao: Date
+  -dataRealDevolucao: Date
+  -status: string ' Ativo, Finalizado
+}
+
+class Solicitacao {
+  -id: int
+  -status: string ' Pendente, Aprovada, Rejeitada
+}
+
+class Reserva {
+    -id: int
+    -dataReserva: Date
+    -status: string ' Ativa, Atendida, Cancelada
+}
+
+' ============================================
+' === RELACIONAMENTOS ===
+' ============================================
+TelaLogin --> AutenticacaoControlador
+TelaPortalCliente --> PortalClienteControlador
+TelaPainelAdmin --> SolicitacaoControlador
+TelaPainelAdmin --> EmprestimoControlador
+TelaPainelAdmin --> AcervoControlador
+TelaPainelAdmin --> GestaoUsuarioControlador
+AutenticacaoControlador --> AutenticacaoServico
+PortalClienteControlador --> SolicitacaoServico
+PortalClienteControlador --> ReservaServico
+PortalClienteControlador --> EmprestimoServico
+SolicitacaoControlador --> SolicitacaoServico
+EmprestimoControlador --> EmprestimoServico
+AcervoControlador --> LivroServico
+GestaoUsuarioControlador --> ClienteServico
+SolicitacaoServico ..> EmprestimoServico : <<usa>>
+EmprestimoServico ..> ReservaServico : <<usa ao devolver>>
+Cliente "1" -- "0..*" Emprestimo
+Livro "1" -- "0..*" Emprestimo
+Cliente "1" -- "0..*" Solicitacao
+Livro "1" -- "0..*" Solicitacao
+Cliente "1" -- "0..*" Reserva
+Livro "1" -- "0..*" Reserva
+
+@enduml
