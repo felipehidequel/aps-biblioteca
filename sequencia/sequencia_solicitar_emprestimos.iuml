@@ -1,5 +1,5 @@
 @startuml
-title Diagrama de Sequência - Solicitar Empréstimo
+title Diagrama de Sequência - Solicitar Empréstimo (Versão Final)
 
 actor Cliente
 participant ":TelaPortalCliente" as Tela

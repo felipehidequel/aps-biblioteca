@@ -1,5 +1,5 @@
 @startuml
-title Diagrama de Sequência - Gerenciamento de Solicitação
+title Diagrama de Sequência - Gerenciamento de Solicitação (Versão Final)
 
 actor Bibliotecário
 participant ":TelaPainelAdmin" as Tela
