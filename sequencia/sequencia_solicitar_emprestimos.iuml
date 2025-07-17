@@ -1,60 +1,72 @@
 @startuml
-title Diagrama de Sequência Padronizado - Solicitar Empréstimo de Livros
+title Diagrama de Sequência - Solicitar Empréstimo
 
 actor Cliente
-participant TelaCliente
-participant AutenticacaoControlador
-participant AutenticacaoServico
-participant EmprestimoControlador
-participant ClienteServico
-participant EmprestimoServico
+participant ":TelaPortalCliente" as Tela
+participant ":AutenticacaoControlador" as AuthControl
+participant ":PortalClienteControlador" as SolicitacaoControl
+participant ":SolicitacaoServico" as SolicitacaoSvc
+participant ":ClienteServico" as ClienteSvc
+participant ":LivroServico" as LivroSvc
+entity "c:Cliente" as ClienteEnt
+entity "l:Livro" as LivroEnt
+entity "s:Solicitacao" as SolicitacaoEnt
 
 skinparam sequenceMessageAlign center
 
 group Pré-condição: Autenticação
-    Cliente -> TelaCliente ++ : 1. Inserir login e senha
-    TelaCliente -> AutenticacaoControlador ++ : 2. autenticar(login, senha)
-    AutenticacaoControlador -> AutenticacaoServico ++ : 3. executarAutenticacao(login, senha)
-    AutenticacaoServico --> AutenticacaoControlador -- : 4. Retorna [SUCESSO]
-    AutenticacaoControlador --> TelaCliente -- : 5. Retorna token/sucesso
-    TelaCliente --> Cliente -- : 6. Exibe tela principal
+    Cliente -> Tela ++ : 1. Inserir login e senha
+    Tela -> AuthControl ++ : 2. autenticar(login, senha)
+    ... Autenticação ocorre ...
+    AuthControl --> Tela -- : 5. Retorna token/sucesso
+    Tela --> Cliente -- : 6. Exibe tela principal
 end
 
 group Fluxo Principal: Solicitação de Empréstimo
 
-    Cliente -> TelaCliente ++ : 7. Acessa a área de empréstimos
-    TelaCliente -> EmprestimoControlador ++ : 8. obterLivrosDisponiveis()
-    EmprestimoControlador -> EmprestimoServico ++ : 9. obterLivrosDisponiveis()
-    EmprestimoServico --> EmprestimoControlador -- : 10. Retorna [listaDeLivros]
-    EmprestimoControlador --> TelaCliente -- : 11. Retorna [listaDeLivros]
-    TelaCliente --> Cliente -- : 12. Exibe livros disponíveis
+    Cliente -> Tela ++ : 7. Seleciona livro e solicita (clienteId, livroId)
+    Tela -> SolicitacaoControl ++ : 8. criarSolicitacao(clienteId, livroId)
+    
+    ' O Controlador delega a lógica de negócio para o Serviço
+    SolicitacaoControl -> SolicitacaoSvc ++ : 9. criarSolicitacao(clienteId, livroId)
+    
+    ' Passo 1: O Serviço busca as entidades necessárias
+    SolicitacaoSvc -> ClienteSvc ++ : 10. buscarCliente(clienteId)
+    ClienteSvc --> SolicitacaoSvc -- : 11. Retorna [cliente]
+    SolicitacaoSvc -> LivroSvc ++ : 12. buscarLivro(livroId)
+    LivroSvc --> SolicitacaoSvc -- : 13. Retorna [livro]
 
-    Cliente -> TelaCliente ++ : 13. Seleciona livros e solicita empréstimo
-    TelaCliente -> EmprestimoControlador ++ : 14. solicitarEmprestimo(cliente, livros)
-    EmprestimoControlador -> EmprestimoServico ++ : 15. registrarSolicitacao(cliente, livros)
-    
-    ' Lógica de negócio é centralizada no EmprestimoServico
-    EmprestimoServico -> ClienteServico ++ : 16. verificarSituacao(cliente)
-    
+    ' Passo 2: O Serviço executa as validações
     alt Cliente com pendências
-        ClienteServico --> EmprestimoServico -- : Retorna [COM_PENDENCIAS]
-        EmprestimoServico --> EmprestimoControlador -- : Retorna erro "Cliente com pendências"
-        EmprestimoControlador --> TelaCliente -- : Retorna erro "Cliente com pendências"
-        TelaCliente --> Cliente --: 17. Exibe "Você possui pendências e não pode solicitar empréstimos"
+        SolicitacaoSvc -> ClienteEnt : 14. isRegular()
+        ClienteEnt --> SolicitacaoSvc -- : 15. Retorna [false]
+        SolicitacaoSvc --> SolicitacaoControl -- : 16. Lança Exceção("Cliente com pendências")
+        SolicitacaoControl --> Tela -- : 17. Retorna erro
+        Tela --> Cliente --: 18. Exibe "Você possui pendências..."
     
     else Cliente regular
-        ClienteServico --> EmprestimoServico -- : Retorna [REGULAR]
+        SolicitacaoSvc -> ClienteEnt : 14.1. isRegular()
+        ClienteEnt --> SolicitacaoSvc -- : 15.1. Retorna [true]
         
-        ' EmprestimoServico continua a verificação (ex: disponibilidade dos livros)
         alt Livro indisponível
-            EmprestimoServico --> EmprestimoControlador -- : Retorna erro "Livro indisponível"
-            EmprestimoControlador --> TelaCliente -- : Retorna erro "Livro indisponível"
-            TelaCliente --> Cliente --: 18. Exibe "Um dos livros não está mais disponível"
+            SolicitacaoSvc -> LivroSvc ++ : 16.1. isDisponivel(livroId)
+            LivroSvc --> SolicitacaoSvc -- : 17.1. Retorna [false]
+            SolicitacaoSvc --> SolicitacaoControl -- : 18.1. Lança Exceção("Livro indisponível")
+            SolicitacaoControl --> Tela -- : 19.1. Retorna erro
+            Tela --> Cliente --: 20.1. Exibe "O livro não está mais disponível"
         
-        else Todos os livros disponíveis
-            EmprestimoServico --> EmprestimoControlador -- : Retorna [SUCESSO]
-            EmprestimoControlador --> TelaCliente -- : Retorna [SUCESSO]
-            TelaCliente --> Cliente --: 19. Exibe "Solicitação registrada com sucesso! Aguarde a avaliação."
+        else Todos os pré-requisitos atendidos
+            SolicitacaoSvc -> LivroSvc ++ : 16.2. isDisponivel(livroId)
+            LivroSvc --> SolicitacaoSvc -- : 17.2. Retorna [true]
+            
+            ' Passo 3: O Serviço cria e persiste a nova entidade
+            create SolicitacaoEnt
+            SolicitacaoSvc -> SolicitacaoEnt : 18.2. new(cliente, livro, "Pendente")
+            note right: Persiste a nova solicitação no banco de dados.
+            
+            SolicitacaoSvc --> SolicitacaoControl -- : 19.2. Retorna [SUCESSO]
+            SolicitacaoControl --> Tela -- : 20.2. Retorna [SUCESSO]
+            Tela --> Cliente --: 21.2. Exibe "Solicitação registrada com sucesso!"
         end
     end
 end

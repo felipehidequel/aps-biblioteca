@@ -1,69 +1,83 @@
 @startuml
-' Definição de título e participantes
-title Gerenciamento de Solicitação de Empréstimo
+title Diagrama de Sequência - Gerenciamento de Solicitação
 
 actor Bibliotecário
-participant ":TelaSolicitacoes" as Tela
-participant ":ControladorSolicitacoes" as Controlador
-participant ":SolicitacoesService" as Service
-participant "s:SolicitacaoEmprestimo" as Solicitacao
-participant "c:Cliente" as Cliente
-participant "l:Livro" as Livro
+participant ":TelaPainelAdmin" as Tela
+participant ":SolicitacaoControlador" as Controlador
+participant ":SolicitacaoServico" as SolicitacaoSvc
+participant ":EmprestimoServico" as EmprestimoSvc
+participant ":LivroServico" as LivroSvc
+participant ":ClienteServico" as ClienteSvc
+entity "s:Solicitacao" as SolicitacaoEnt
+entity "c:Cliente" as ClienteEnt
+entity "l:Livro" as LivroEnt
+entity "e:Emprestimo" as EmprestimoEnt
 
 ' Início da sequência
-Bibliotecário -> Tela ++ : 1: acessarAreaSolicitacoes()
-Tela -> Controlador ++ : 2: listarSolicitacoesPendentes()
-Controlador -> Service ++ : 3: listarSolicitacoesPendentes()
-Service --> Controlador -- : 4: retorna [listaDeSolicitacoes]
-Controlador --> Tela -- : 5: retorna [listaDeSolicitacoes]
-Tela --> Bibliotecário : 6: exibeSolicitacoes()
+Bibliotecário -> Tela ++ : 1. Acessa área de solicitações
+Tela -> Controlador ++ : 2. listarPendentes()
+Controlador -> SolicitacaoSvc ++ : 3. listarPendentes()
+SolicitacaoSvc --> Controlador -- : 4. retorna [listaDeSolicitacoes]
+Controlador --> Tela -- : 5. retorna [listaDeSolicitacoes]
+Tela --> Bibliotecário : 6. exibeSolicitacoes()
 
-Bibliotecário -> Tela ++ : 7: selecionarSolicitacao(id)
-Tela -> Controlador ++ : 8: verificarStatusCliente(id)
-Controlador -> Service ++ : 9: verificarStatusCliente(id)
-Service -> Solicitacao ++ : 10: getCliente()
-Solicitacao --> Service -- : 11: retorna [cliente]
-Service -> Cliente ++ : 12: isRegular()
+Bibliotecário -> Tela ++ : 7. selecionarSolicitacaoParaAprovar(idSolicitacao)
+Tela -> Controlador ++ : 8. aprovarSolicitacao(idSolicitacao)
+Controlador -> SolicitacaoSvc ++ : 9. aprovar(idSolicitacao)
 
-' Bloco de fluxo alternativo (alt/else)
-alt Cliente regular
-    Cliente --> Service -- : 13: retorna [true]
-    Service --> Controlador -- : 14: retorna [statusRegular]
-    Controlador --> Tela -- : 15: retorna [statusRegular]
-    Tela --> Bibliotecário : 16: exibeStatusRegular()
+' Passo 1: O Serviço busca a entidade principal
+SolicitacaoSvc -> SolicitacaoSvc : 10. buscarPorId(idSolicitacao)
+note right: Busca a solicitação no banco de dados.
+SolicitacaoSvc --> SolicitacaoSvc : 11. retorna [solicitacao]
+
+' Passo 2: Validações de segurança e estado
+alt Solicitação já processada
+    SolicitacaoSvc -> SolicitacaoEnt : 12. getStatus()
+    SolicitacaoEnt --> SolicitacaoSvc -- : 13. retorna [status != "Pendente"]
+    SolicitacaoSvc --> Controlador -- : 14. Lança Exceção("Solicitação já foi processada")
+    Controlador --> Tela -- : 15. Retorna erro
+    Tela --> Bibliotecário : 16. Exibe "Esta solicitação já foi atendida."
+else Solicitação está pendente
+    SolicitacaoSvc -> SolicitacaoEnt : 12.1. getStatus()
+    SolicitacaoEnt --> SolicitacaoSvc -- : 13.1. retorna ["Pendente"]
+
+    note over SolicitacaoSvc
+    Revalidação das regras de negócio no momento da aprovação
+    para evitar inconsistências.
+    end note
+
+    ' Revalidação 2.1: Busca entidades relacionadas
+    SolicitacaoSvc -> ClienteSvc ++: 14.1. buscarCliente(solicitacao.clienteId)
+    ClienteSvc --> SolicitacaoSvc --: 15.1. retorna [cliente]
+    SolicitacaoSvc -> LivroSvc ++: 16.1. buscarLivro(solicitacao.livroId)
+    LivroSvc --> SolicitacaoSvc --: 17.1. retorna [livro]
     
-    Bibliotecário -> Tela ++ : 17: aprovarSolicitacao()
-    Tela -> Controlador ++ : 18: aprovarSolicitacao(id)
-    Controlador -> Service ++ : 19: aprovarSolicitacao(id)
+    ' Revalidação 2.2: Verifica novamente a situação do cliente
+    SolicitacaoSvc -> ClienteEnt : 18.1. isRegular()
+    opt Se cliente se tornou irregular
+         ClienteEnt --> SolicitacaoSvc -- : 19.1. retorna [false]
+         SolicitacaoSvc -> SolicitacaoSvc : rejeitar(idSolicitacao) 
+         SolicitacaoSvc --> Controlador --: Lança Exceção("Cliente ficou irregular")
+         return
+    end
+    ClienteEnt --> SolicitacaoSvc -- : 19.2. retorna [true]
+
+    ' Passo 3: Executa as ações de negócio (orquestração)
+    SolicitacaoSvc -> EmprestimoSvc ++ : 20.1. criarEmprestimo(cliente, livro)
+    create EmprestimoEnt
+    EmprestimoSvc -> EmprestimoEnt : 21.1. new()
+    note right: Persiste o novo empréstimo no banco de dados.
+    EmprestimoSvc --> SolicitacaoSvc -- : 22.1. retorna [emprestimo]
     
-    Service -> Solicitacao ++ : 20: atualizarStatus("Aprovada")
-    Solicitacao --> Service --
-    Service -> Livro ++ : 21: atualizarStatus("Emprestado")
-    Livro --> Service --
-    Service -> Cliente ++ : 22: adicionarAoHistorico(emprestimo)
-    Cliente --> Service --
-
-    Service --> Controlador -- : 23: retorna [confirmacaoSucesso]
-    Controlador --> Tela -- : 24: retorna [confirmacaoSucesso]
-    Tela --> Bibliotecário : 25: exibeConfirmacaoSucesso()
-
-else Cliente não regular
-    Cliente --> Service -- : 13.1: retorna [false]
-    Service -> Cliente ++ : 13.2: getPendencias()
-    Cliente --> Service -- : 13.3: retorna [listaDePendencias]
-    Service --> Controlador -- : 14.1: retorna [statusNaoRegular, pendencias]
-    Controlador --> Tela -- : 15.1: retorna [statusNaoRegular, pendencias]
-    Tela --> Bibliotecário : 16.1: exibePendencias()
-
-    Bibliotecário -> Tela ++ : 17.1: recusarSolicitacao()
-    Tela -> Controlador ++ : 18.1: recusarSolicitacao(id)
-    Controlador -> Service ++ : 19.1: recusarSolicitacao(id)
-    Service -> Solicitacao ++ : 20.1: atualizarStatus("Recusada")
-    Solicitacao --> Service --
+    SolicitacaoSvc -> LivroSvc ++ : 23.1. atualizarDisponibilidade(livro, false)
+    note right: Marca o livro como indisponível.
+    LivroSvc --> SolicitacaoSvc --
     
-    Service --> Controlador -- : 21.1: retorna [confirmacaoRecusa]
-    Controlador --> Tela -- : 22.1: retorna [confirmacaoRecusa]
-    Tela --> Bibliotecário : 23.1: exibeConfirmacaoRecusa()
+    SolicitacaoSvc -> SolicitacaoEnt : 24.1. setStatus("Aprovada")
+    note right: Atualiza e persiste o status da solicitação.
+    
+    SolicitacaoSvc --> Controlador -- : 25.1. retorna [SUCESSO]
+    Controlador --> Tela -- : 26.1. retorna [SUCESSO]
+    Tela --> Bibliotecário : 27.1. exibeConfirmacaoSucesso()
 end
-
 @enduml
